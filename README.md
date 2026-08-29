@@ -166,3 +166,5 @@ npm run dev
 
 ## 📄 License
 MIT © 2026 [Ishant](https://github.com/Ishant6565/ApexCache-FlashKV). Flagship Project A1 from the **Resume Project Vault 2026** (Track A: Core Systems / Top Product Engineering).
+
+<!-- Co-authored pair programming collaboration -->
