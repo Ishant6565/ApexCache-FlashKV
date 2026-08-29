@@ -1,0 +1,106 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         String   @default("STORAGE_ADMIN")
+  apiKey       String   @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Keyspace {
+  id             String   @id @default(cuid())
+  name           String   @unique
+  evictionPolicy String   @default("LRU") // "LRU", "LFU", "TTL"
+  maxKeys        Int      @default(10000)
+  memoryLimitMb  Float    @default(512.0)
+  currentKeys    Int      @default(0)
+  hitCount       Int      @default(0)
+  missCount      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  entries KvEntry[]
+}
+
+model KvEntry {
+  id             String    @id @default(cuid())
+  keyspaceId     String
+  key            String
+  value          String
+  ttlSeconds     Int?      // Null if persistent
+  expiresAt      DateTime? // Absolute expiration timestamp
+  accessCount    Int       @default(1)
+  lastAccessedAt DateTime  @default(now())
+  isTombstone    Boolean   @default(false)
+  sstableLevel   String    @default("MEMTABLE") // "MEMTABLE", "L0", "L1", "L2"
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  keyspace Keyspace @relation(fields: [keyspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([keyspaceId, key])
+  @@index([keyspaceId, sstableLevel])
+  @@index([expiresAt])
+}
+
+model WalLogEntry {
+  id             String   @id @default(cuid())
+  sequenceNumber Int      @unique
+  keyspaceName   String
+  operation      String   // "SET", "DEL", "EXPIRE"
+  key            String
+  valueSnippet   String?
+  timestamp      DateTime @default(now())
+
+  @@index([timestamp])
+}
+
+model SstableFile {
+  id              String   @id @default(cuid())
+  level           String   // "L0", "L1", "L2"
+  filename        String   @unique
+  minKey          String
+  maxKey          String
+  entryCount      Int
+  sizeBytes       Int
+  bloomFilterBits String   // Hex representation of Bloom filter bitset
+  createdAt       DateTime @default(now())
+
+  @@index([level])
+}
+
+model StorageNode {
+  id               String   @id @default(cuid())
+  nodeId           String   @unique
+  host             String
+  port             Int
+  status           String   @default("FOLLOWER") // "LEADER", "FOLLOWER", "SYNCING"
+  ringPosition     Float    // Degree angle 0 - 360 or 32-bit uint
+  virtualNodeCount Int      @default(128)
+  lastHeartbeat    DateTime @default(now())
+
+  @@index([status])
+}
+
+model SecurityAuditEvent {
+  id             String   @id @default(cuid())
+  action         String
+  targetResource String
+  riskLevel      String   // "LOW", "MEDIUM", "CRITICAL"
+  payloadSnippet String?
+  ipAddress      String?
+  timestamp      DateTime @default(now())
+
+  @@index([timestamp])
+}
